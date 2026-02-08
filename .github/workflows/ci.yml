@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  unit-tests:
+    name: Unit Tests (no LLM calls)
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run unit tests (commit hook tier — no LLM calls)
+        run: pytest tests/unit/ -v --tb=short
+
+  integration-smoke:
+    name: Integration Smoke (PR tier, mock only)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    needs: unit-tests
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run integration tests (mock-only, no real API budget)
+        run: pytest tests/integration/ -v --tb=short -m "integration"
+
+  nightly-full:
+    name: Full Suite (nightly, budget $2.00)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -e ".[dev]"
+      - name: Run full test suite
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: pytest tests/ -v --tb=short
+
+schedules:
+  - cron: "0 2 * * *"  # 2 AM UTC daily
+    branches: [main]

@@ -12,6 +12,14 @@ description: "Task list template for feature implementation"
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
+**Constitution Compliance**: All tasks must align with `.specify/memory/constitution.md` (v1.5.0). Key requirements:
+- **Observability** (Principle IV): Token tracking, LLM logging, workflow state tracking
+- **Testing** (Principles VI & VII): Fixture-based tests, semantic assertions, cost budgets ($0.10/test, $5/suite)
+- **Security** (Principle VIII): Prompt injection defense, PII protection, DoW prevention
+- **Backward Compatibility** (Principle X): No breaking changes OR migration guide
+- **Extensibility** (Principle XI): Use plugin system for customization
+- See Phase 2 (Foundational) for required infrastructure tasks and User Story 1 for implementation patterns
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - **[P]**: Can run in parallel (different files, no dependencies)
@@ -60,14 +68,62 @@ description: "Task list template for feature implementation"
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-Examples of foundational tasks (adjust based on your project):
+### Standard Infrastructure (adjust based on your project)
 
-- [ ] T004 Setup database schema and migrations framework
-- [ ] T005 [P] Implement authentication/authorization framework
-- [ ] T006 [P] Setup API routing and middleware structure
+- [ ] T004 Setup database schema and migrations framework (if applicable)
+- [ ] T005 [P] Implement authentication/authorization framework (if applicable)
+- [ ] T006 [P] Setup API routing and middleware structure (if applicable)
 - [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
+- [ ] T008 Configure error handling infrastructure
 - [ ] T009 Setup environment configuration management
+
+### Constitution-Required Infrastructure (AI Workflow Framework)
+
+**Observability (Principle IV):**
+- [ ] T010 [P] Implement token tracking system in src/observability/token_tracker.py
+  - Track prompt_tokens, completion_tokens, total_tokens
+  - Emit metrics: llm.tokens.{prompt,completion,total}
+  - Provide query API for applications
+- [ ] T011 [P] Implement LLM interaction logger in src/observability/llm_logger.py
+  - Log model, parameters, latency, rate limits
+  - Structured JSON format with correlation IDs
+- [ ] T012 [P] Implement workflow state tracker in src/observability/workflow_tracker.py
+  - Log state transitions, step execution times
+
+**Testing Infrastructure (Principles VI & VII):**
+- [ ] T013 [P] Create fixture recording system in src/testing/fixture_recorder.py
+  - VCR pattern for LLM responses
+  - Save/load fixtures from tests/fixtures/
+- [ ] T014 [P] Create cost tracking test utility in src/testing/cost_tracker.py
+  - Track test costs, enforce budgets
+  - Pytest plugin for @cost_budget decorator
+- [ ] T015 [P] Create semantic assertion helpers in src/testing/semantic_assertions.py
+  - Length validation, format validation, similarity checks
+  - Helpers for non-deterministic LLM output testing
+
+**Extensibility (Principle XI):**
+- [ ] T016 [P] Implement plugin registry in src/plugins/registry.py
+  - Declarative plugin registration
+  - Plugin discovery and loading
+- [ ] T017 [P] Implement middleware system in src/plugins/middleware.py
+  - before_llm_call, after_llm_call hooks
+  - Middleware chain execution
+
+**Security (Principle VIII):**
+- [ ] T018 [P] Implement prompt injection defense utilities in src/security/prompt_defense.py
+  - Structured prompt templates with delimiters
+  - Input validation for injection patterns
+- [ ] T019 [P] Implement PII detection in src/security/pii_detector.py
+  - Regex patterns for emails, SSNs, credit cards
+  - Redaction utilities
+- [ ] T020 [P] Implement rate limiting in src/security/rate_limiter.py
+  - Per-user token limits
+  - DoW prevention
+
+**Documentation (Principles I, II, X):**
+- [ ] T021 Create CHANGELOG.md in project root (semantic versioning format)
+- [ ] T022 Create UPGRADING.md in project root (migration guides)
+- [ ] T023 [P] Create plugin development guide in .specify/guides/plugin-development.md
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -79,23 +135,78 @@ Examples of foundational tasks (adjust based on your project):
 
 **Independent Test**: [How to verify this story works on its own]
 
+**Constitution Compliance**: This user story demonstrates all 11 constitutional principles in practice
+
 ### Tests for User Story 1 (OPTIONAL - only if tests requested) ⚠️
 
 > **NOTE: Write these tests FIRST, ensure they FAIL before implementation**
 
-- [ ] T010 [P] [US1] Contract test for [endpoint] in tests/contract/test_[name].py
-- [ ] T011 [P] [US1] Integration test for [user journey] in tests/integration/test_[name].py
+**Unit Tests (Principle VI - AI-Specific):**
+- [ ] T024 [P] [US1] Pure logic tests in tests/unit/test_[name]_logic.py
+  - Deterministic tests for prompt formatting, parsing, calculations
+  - Standard assertions: `assert format_prompt(x) == "Expected"`
+- [ ] T025 [P] [US1] Fixture-based tests in tests/unit/test_[name]_llm.py
+  - Record LLM responses to tests/fixtures/[name].yaml
+  - Mock LLM provider (NO real API calls in unit tests)
+- [ ] T026 [P] [US1] Semantic assertion tests in tests/unit/test_[name]_semantic.py
+  - Test output characteristics (length, format, content presence)
+  - NO exact string matching for LLM outputs
+
+**Integration Tests (Principle VII - AI-Specific):**
+- [ ] T027 [US1] Integration test with cost budget in tests/integration/test_[name].py
+  - **Cost budget**: $0.10 per test (document in test docstring)
+  - Use cheap model (e.g., gpt-3.5-turbo, claude-haiku)
+  - Semantic validation (assert length, format, not exact strings)
+  - Model version pinned (e.g., `@pytest.mark.model_version("gpt-4-0613")`)
+
+**Security Tests (Principle VIII - AI-Specific):**
+- [ ] T028 [P] [US1] Prompt injection test in tests/security/test_[name]_injection.py
+  - Test defense against common injection patterns
+  - Verify system prompts not leaked
+- [ ] T029 [P] [US1] PII protection test in tests/security/test_[name]_pii.py
+  - Verify PII detection before LLM calls
+  - Test redaction functionality
 
 ### Implementation for User Story 1
 
-- [ ] T012 [P] [US1] Create [Entity1] model in src/models/[entity1].py
-- [ ] T013 [P] [US1] Create [Entity2] model in src/models/[entity2].py
-- [ ] T014 [US1] Implement [Service] in src/services/[service].py (depends on T012, T013)
-- [ ] T015 [US1] Implement [endpoint/feature] in src/[location]/[file].py
-- [ ] T016 [US1] Add validation and error handling
-- [ ] T017 [US1] Add logging for user story 1 operations
+**Data Models (Principles I, II):**
+- [ ] T030 [P] [US1] Create [Entity1] model in src/models/[entity1].py
+  - Define interface with abstract base class
+  - Add docstrings with purpose, attributes, examples
+  - Include type annotations
+- [ ] T031 [P] [US1] Create [Entity2] model in src/models/[entity2].py
+  - Define interface first
+  - Document all public methods
 
-**Checkpoint**: At this point, User Story 1 should be fully functional and testable independently
+**Business Logic (Principles III, IV):**
+- [ ] T032 [US1] Implement [Service] in src/services/[service].py (depends on T030, T031)
+  - Follow SOLID principles (dependency injection via interfaces)
+  - **Add token tracking** (use token_tracker from foundational phase)
+  - **Add LLM logging** (model, latency, parameters)
+  - Structured logging with correlation IDs
+  - Docstrings for all public methods with examples
+
+**Feature Implementation (Principles V, XI):**
+- [ ] T033 [US1] Implement [endpoint/feature] in src/[location]/[file].py
+  - **Use plugin system** (register via PluginRegistry if extending LLM providers)
+  - Provide sensible defaults (convention over configuration)
+  - Configuration validation at startup
+- [ ] T034 [US1] Add validation and error handling
+  - Input validation (anti-prompt injection)
+  - PII detection before LLM calls
+  - Rate limiting enforcement
+
+**Documentation & Compliance (Principles II, X):**
+- [ ] T035 [US1] Document public APIs with usage examples
+  - At least one example per non-trivial interface
+  - Document performance characteristics
+- [ ] T036 [US1] Update CHANGELOG.md
+  - Document changes per semantic versioning
+  - Note any deprecations or breaking changes
+- [ ] T037 [US1] Verify backward compatibility
+  - No breaking changes to public APIs OR migration guide in UPGRADING.md
+
+**Checkpoint**: At this point, User Story 1 should be fully functional, testable independently, and constitution-compliant
 
 ---
 
@@ -150,12 +261,35 @@ Examples of foundational tasks (adjust based on your project):
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] TXXX [P] Documentation updates in docs/
+**Standard Polish:**
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (if requested) in tests/unit/
-- [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
+
+**Constitution Compliance (Final Verification):**
+- [ ] TXXX [P] **Principle VI**: Add additional unit tests if coverage below 80%
+- [ ] TXXX [P] **Principle VII**: Verify all integration tests under cost budget ($5 total)
+- [ ] TXXX [P] **Principle II**: Documentation review - all public APIs documented
+- [ ] TXXX [P] **Principle VIII**: Security audit - verify all AI threats addressed
+  - Prompt injection defense tested
+  - PII protection verified
+  - DoW prevention (rate limits, input limits) tested
+  - Output sanitization verified
+- [ ] TXXX [P] **Principle X**: Backward compatibility check
+  - Verify no breaking changes OR UPGRADING.md updated
+  - CHANGELOG.md complete with all changes
+  - Deprecation warnings implemented for removed features
+- [ ] TXXX [P] **Principle XI**: Plugin system validation
+  - Example plugins tested
+  - Plugin documentation complete (.specify/guides/plugin-development.md)
+  - Plugin isolation verified (failure doesn't crash framework)
+- [ ] TXXX [P] **Principle IV**: Observability verification
+  - Token tracking tested across all LLM calls
+  - Metrics emitted correctly
+  - Logs structured and include correlation IDs
+- [ ] TXXX Constitution compliance report
+  - Generate report of all principles and compliance status
+  - Document any justified violations in plan.md Complexity Tracking
 
 ---
 
@@ -246,6 +380,8 @@ With multiple developers:
 - [Story] label maps task to specific user story for traceability
 - Each user story should be independently completable and testable
 - Verify tests fail before implementing
+- **Principle XII — Branch-Per-Task**: Each task MUST be worked on in its own branch
+  (`<task-id>-<short-description>`). Merge to main only after unit AND integration tests pass.
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
