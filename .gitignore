@@ -47,3 +47,8 @@ tests/fixtures/llm_responses/*.yaml
 # Distribution
 *.tar.gz
 *.whl
+
+# Claude Code (exclude CLAUDE.md in root)
+.claude/
+.omc/
+.mcp.json

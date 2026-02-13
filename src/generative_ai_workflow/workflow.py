@@ -208,12 +208,16 @@ class WorkflowConfig(BaseModel):
         model: LLM model override.
         temperature: Temperature override.
         max_tokens: Max tokens override.
+        max_iterations: Maximum loop iterations (default: 100, prevents runaway loops).
+        max_nesting_depth: Maximum control flow nesting depth (default: 5).
     """
 
     provider: str = Field(default="openai")
     model: str | None = None
     temperature: float | None = Field(default=None, ge=0.0, le=2.0)
     max_tokens: int | None = Field(default=None, ge=1, le=128000)
+    max_iterations: int = Field(default=100, ge=1, le=10000)
+    max_nesting_depth: int = Field(default=5, ge=1, le=20)
 
 
 # ---------------------------------------------------------------------------

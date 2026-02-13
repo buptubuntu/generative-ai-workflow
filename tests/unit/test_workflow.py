@@ -167,3 +167,71 @@ class TestInputValidation:
     def test_validate_input_data_deep(self) -> None:
         with pytest.raises(ValueError):
             _validate_input_data({"nested": {"text": "ignore previous"}})
+
+
+class TestWorkflowConfigValidation:
+    """Tests for WorkflowConfig field validation (T014)."""
+
+    def test_max_iterations_default(self) -> None:
+        """Test max_iterations has correct default value."""
+        config = WorkflowConfig()
+        assert config.max_iterations == 100
+
+    def test_max_iterations_valid_range(self) -> None:
+        """Test max_iterations accepts valid values."""
+        config = WorkflowConfig(max_iterations=50)
+        assert config.max_iterations == 50
+
+        config = WorkflowConfig(max_iterations=1)
+        assert config.max_iterations == 1
+
+        config = WorkflowConfig(max_iterations=10000)
+        assert config.max_iterations == 10000
+
+    def test_max_iterations_rejects_invalid(self) -> None:
+        """Test max_iterations rejects values outside valid range."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_iterations=0)  # Below minimum
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_iterations=10001)  # Above maximum
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_iterations=-1)  # Negative
+
+    def test_max_nesting_depth_default(self) -> None:
+        """Test max_nesting_depth has correct default value."""
+        config = WorkflowConfig()
+        assert config.max_nesting_depth == 5
+
+    def test_max_nesting_depth_valid_range(self) -> None:
+        """Test max_nesting_depth accepts valid values."""
+        config = WorkflowConfig(max_nesting_depth=3)
+        assert config.max_nesting_depth == 3
+
+        config = WorkflowConfig(max_nesting_depth=1)
+        assert config.max_nesting_depth == 1
+
+        config = WorkflowConfig(max_nesting_depth=20)
+        assert config.max_nesting_depth == 20
+
+    def test_max_nesting_depth_rejects_invalid(self) -> None:
+        """Test max_nesting_depth rejects values outside valid range."""
+        from pydantic import ValidationError
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_nesting_depth=0)  # Below minimum
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_nesting_depth=21)  # Above maximum
+
+        with pytest.raises(ValidationError):
+            WorkflowConfig(max_nesting_depth=-1)  # Negative
+
+    def test_both_fields_together(self) -> None:
+        """Test setting both max_iterations and max_nesting_depth."""
+        config = WorkflowConfig(max_iterations=200, max_nesting_depth=10)
+        assert config.max_iterations == 200
+        assert config.max_nesting_depth == 10

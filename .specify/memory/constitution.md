@@ -1,13 +1,23 @@
 <!--
 Sync Impact Report:
 
+v1.5.1 (2026-02-08) - PATCH: Clarify Principle XII — commit spec artifacts before implementation
+- Modified principles:
+  - Principle XII: added requirement that all spec/design artifacts (spec.md, plan.md, tasks.md,
+    data-model.md, contracts/, etc.) MUST be committed and merged to main before implementation
+    begins, ensuring a stable and traceable design baseline.
+- Templates requiring updates:
+  ✅ .specify/templates/plan-template.md (No changes needed)
+  ✅ .specify/templates/tasks-template.md (No changes needed)
+  ✅ .specify/templates/spec-template.md (No changes needed)
+
 v1.5.0 (2026-02-08) - MINOR: Added Principle XII — Branch-Per-Task Development Workflow
 - Added principles:
   - Principle XII (Branch-Per-Task Development Workflow) - NEW: every task gets its own feature
     branch; merge to main only after unit tests and integration tests pass
 - Templates requiring updates:
-  ⚠️  .specify/templates/plan-template.md (Constitution Check: add Principle XII checklist item)
-  ⚠️  .specify/templates/tasks-template.md (Notes: add branch-per-task reminder)
+  ✅ .specify/templates/plan-template.md (Constitution Check: added Principle XII checklist item)
+  ✅ .specify/templates/tasks-template.md (Notes: added branch-per-task reminder)
   ✅ .specify/templates/spec-template.md (No changes needed)
 
 v1.4.1 (2026-02-07) - PATCH: Grammar fixes and guideline clarifications
@@ -1130,14 +1140,18 @@ def execute_workflow(steps):
 ### XII. Branch-Per-Task Development Workflow
 
 Every task MUST be developed on its own dedicated feature branch. Changes MUST only be merged
-into the main branch after all unit tests and integration tests pass.
+into the main branch after all unit tests and integration tests pass. All spec and design
+artifacts MUST be committed and merged to main before implementation of any feature begins.
 
 **Rationale**: Isolating each task to its own branch prevents in-progress work from destabilizing
 the main branch, enables parallel development without interference, and ensures every merge
-represents a complete, tested increment. This keeps the main branch always deployable and makes
-regressions trivially bisectable.
+represents a complete, tested increment. Committing spec artifacts first establishes a stable,
+traceable design baseline that implementation branches can reference. This keeps the main branch
+always deployable and makes regressions trivially bisectable.
 
 **Requirements**:
+- Before starting implementation: all spec/design files for the feature (spec.md, plan.md,
+  tasks.md, data-model.md, contracts/, etc.) MUST be committed and merged to main first
 - Every task (as defined in tasks.md) MUST have its own feature branch created before work begins
 - Branch naming MUST follow the convention: `<task-id>-<short-description>`
   (e.g., `T001-create-directory-structure`, `T015-retry-config`)
@@ -1207,4 +1221,4 @@ This constitution is a living document. Amendments require:
 - Pull requests MUST include checklist verifying constitutional compliance
 - Complexity violations require explicit approval from tech lead
 
-**Version**: 1.5.0 | **Ratified**: 2026-02-06 | **Last Amended**: 2026-02-08
+**Version**: 1.5.1 | **Ratified**: 2026-02-06 | **Last Amended**: 2026-02-08
