@@ -20,6 +20,11 @@ Quick start::
 """
 
 from generative_ai_workflow.config import FrameworkConfig
+from generative_ai_workflow.control_flow import (
+    ConditionalStep,
+    ExpressionError,
+    ExpressionTimeoutError,
+)
 from generative_ai_workflow.engine import WorkflowEngine
 from generative_ai_workflow.exceptions import (
     AbortError,
@@ -57,6 +62,10 @@ from generative_ai_workflow.workflow import (
 __all__ = [
     # Config
     "FrameworkConfig",
+    # Control Flow
+    "ConditionalStep",
+    "ExpressionError",
+    "ExpressionTimeoutError",
     # Engine
     "WorkflowEngine",
     # Exceptions
