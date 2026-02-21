@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "generative-ai-workflow"
-version = "0.1.0"
+version = "0.2.0"
 description = "A generic AI workflow framework for building and executing multi-step LLM workflows"
 readme = "README.md"
 requires-python = ">=3.11"

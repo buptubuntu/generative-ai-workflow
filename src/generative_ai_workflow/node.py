@@ -1,7 +1,7 @@
-"""Workflow step abstractions and built-in step types.
+"""Workflow node abstractions and built-in node types.
 
-Defines the WorkflowStep ABC that users and plugins implement, plus
-the built-in LLMStep and TransformStep implementations.
+Defines the WorkflowNode ABC that users and plugins implement, plus
+the built-in LLMNode and TransformNode implementations.
 """
 
 from __future__ import annotations
@@ -11,36 +11,36 @@ import uuid
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, Callable
 
-from generative_ai_workflow.exceptions import StepError
-from generative_ai_workflow.workflow import StepContext, StepResult, StepStatus
+from generative_ai_workflow.exceptions import NodeError
+from generative_ai_workflow.workflow import NodeContext, NodeResult, NodeStatus
 
 if TYPE_CHECKING:
     pass
 
 
-class WorkflowStep(ABC):
-    """Abstract base class for workflow step implementations.
+class WorkflowNode(ABC):
+    """Abstract base class for workflow node implementations.
 
-    Implement this interface to add custom step behaviors (API calls,
+    Implement this interface to add custom node behaviors (API calls,
     data validation, external service integrations, etc.) without
     modifying the framework.
 
     Attributes:
-        name: Human-readable step identifier used in metrics and logs.
-        is_critical: If True (default), step failure aborts the workflow.
+        name: Human-readable node identifier used in metrics and logs.
+        is_critical: If True (default), node failure aborts the workflow.
                      If False, failure is logged and execution continues.
 
     Example::
 
-        class SentimentStep(WorkflowStep):
+        class SentimentNode(WorkflowNode):
             name = "sentiment_analysis"
 
-            async def execute_async(self, context: StepContext) -> StepResult:
+            async def execute_async(self, context: NodeContext) -> NodeResult:
                 text = context.input_data.get("text", "")
                 sentiment = analyze(text)
-                return StepResult(
+                return NodeResult(
                     step_id=context.step_id,
-                    status=StepStatus.COMPLETED,
+                    status=NodeStatus.COMPLETED,
                     output={"sentiment": sentiment},
                     error=None,
                     duration_ms=0.0,
@@ -54,56 +54,56 @@ class WorkflowStep(ABC):
         if name:
             self.name = name
         if not self.name:
-            raise ValueError("WorkflowStep must have a non-empty name.")
+            raise ValueError("WorkflowNode must have a non-empty name.")
         self.is_critical = is_critical
 
     @abstractmethod
-    async def execute_async(self, context: StepContext) -> StepResult:
-        """Execute this step asynchronously.
+    async def execute_async(self, context: NodeContext) -> NodeResult:
+        """Execute this node asynchronously.
 
         Args:
             context: Execution context including input data, variables,
-                     and outputs from previous steps.
+                     and outputs from previous nodes.
 
         Returns:
-            StepResult with output data and execution metadata.
+            NodeResult with output data and execution metadata.
 
         Raises:
-            StepError: On unrecoverable step failure.
+            NodeError: On unrecoverable node failure.
         """
         ...
 
-    def execute(self, context: StepContext) -> StepResult:
-        """Execute this step synchronously.
+    def execute(self, context: NodeContext) -> NodeResult:
+        """Execute this node synchronously.
 
         Default implementation wraps execute_async in an event loop.
-        Override for steps with native sync implementations.
+        Override for nodes with native sync implementations.
 
         Args:
             context: Execution context.
 
         Returns:
-            StepResult with output data.
+            NodeResult with output data.
         """
         import asyncio
         return asyncio.run(self.execute_async(context))
 
 
-class LLMStep(WorkflowStep):
-    """A workflow step that calls an LLM provider with a prompt template.
+class LLMNode(WorkflowNode):
+    """A workflow node that calls an LLM provider with a prompt template.
 
     The prompt supports ``{variable}`` placeholders that are substituted
     from the accumulated context data (input_data + previous_outputs).
 
     Args:
-        name: Step identifier.
+        name: Node identifier.
         prompt: Prompt template with optional ``{variable}`` placeholders.
         provider: Provider name to use (overrides workflow config default).
-        is_critical: Whether step failure aborts the workflow.
+        is_critical: Whether node failure aborts the workflow.
 
     Example::
 
-        step = LLMStep(
+        node = LLMNode(
             name="summarize",
             prompt="Summarize in one sentence: {text}",
         )
@@ -118,21 +118,21 @@ class LLMStep(WorkflowStep):
     ) -> None:
         super().__init__(name=name, is_critical=is_critical)
         if not prompt:
-            raise ValueError("LLMStep requires a non-empty prompt.")
+            raise ValueError("LLMNode requires a non-empty prompt.")
         self.prompt_template = prompt
         self.provider_name = provider
 
-    async def execute_async(self, context: StepContext) -> StepResult:
-        """Execute the LLM step: render prompt, call provider, return result.
+    async def execute_async(self, context: NodeContext) -> NodeResult:
+        """Execute the LLM node: render prompt, call provider, return result.
 
         Args:
             context: Execution context with input data and previous outputs.
 
         Returns:
-            StepResult with LLM response and token usage.
+            NodeResult with LLM response and token usage.
 
         Raises:
-            StepError: If prompt rendering or LLM call fails.
+            NodeError: If prompt rendering or LLM call fails.
         """
         start = time.perf_counter()
         step_id = str(uuid.uuid4())
@@ -143,9 +143,9 @@ class LLMStep(WorkflowStep):
             rendered_prompt = self.prompt_template.format_map(variables)
         except KeyError as e:
             duration = (time.perf_counter() - start) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=step_id,
-                status=StepStatus.FAILED,
+                status=NodeStatus.FAILED,
                 output=None,
                 error=f"Missing template variable: {e}",
                 duration_ms=duration,
@@ -180,9 +180,9 @@ class LLMStep(WorkflowStep):
             response = await provider.complete_async(request)
             duration = (time.perf_counter() - start) * 1000
 
-            return StepResult(
+            return NodeResult(
                 step_id=step_id,
-                status=StepStatus.COMPLETED,
+                status=NodeStatus.COMPLETED,
                 output={f"{self.name}_output": response.content, "llm_response": response.content},
                 error=None,
                 duration_ms=duration,
@@ -191,26 +191,26 @@ class LLMStep(WorkflowStep):
 
         except Exception as e:
             duration = (time.perf_counter() - start) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=step_id,
-                status=StepStatus.FAILED,
+                status=NodeStatus.FAILED,
                 output=None,
                 error=str(e),
                 duration_ms=duration,
             )
 
 
-class TransformStep(WorkflowStep):
-    """A workflow step that applies a pure Python transformation to data.
+class TransformNode(WorkflowNode):
+    """A workflow node that applies a pure Python transformation to data.
 
     Args:
-        name: Step identifier.
+        name: Node identifier.
         transform: Callable that takes a dict and returns a dict.
-        is_critical: Whether step failure aborts the workflow.
+        is_critical: Whether node failure aborts the workflow.
 
     Example::
 
-        step = TransformStep(
+        node = TransformNode(
             name="prepare",
             transform=lambda data: {"prompt_input": data["text"].strip()},
         )
@@ -225,17 +225,17 @@ class TransformStep(WorkflowStep):
         super().__init__(name=name, is_critical=is_critical)
         self.transform = transform
 
-    async def execute_async(self, context: StepContext) -> StepResult:
+    async def execute_async(self, context: NodeContext) -> NodeResult:
         """Apply the transform function to the accumulated context data.
 
         Args:
             context: Execution context with input data and previous outputs.
 
         Returns:
-            StepResult with transformed output.
+            NodeResult with transformed output.
 
         Raises:
-            StepError: If the transform callable raises an exception.
+            NodeError: If the transform callable raises an exception.
         """
         start = time.perf_counter()
         step_id = str(uuid.uuid4())
@@ -245,18 +245,18 @@ class TransformStep(WorkflowStep):
             result = self.transform(combined)
             duration = (time.perf_counter() - start) * 1000
 
-            return StepResult(
+            return NodeResult(
                 step_id=step_id,
-                status=StepStatus.COMPLETED,
+                status=NodeStatus.COMPLETED,
                 output=result,
                 error=None,
                 duration_ms=duration,
             )
         except Exception as e:
             duration = (time.perf_counter() - start) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=step_id,
-                status=StepStatus.FAILED,
+                status=NodeStatus.FAILED,
                 output=None,
                 error=f"Transform failed: {e}",
                 duration_ms=duration,

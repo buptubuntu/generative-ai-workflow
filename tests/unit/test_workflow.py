@@ -5,10 +5,10 @@ from __future__ import annotations
 import pytest
 
 from generative_ai_workflow import (
-    LLMStep,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
-    TransformStep,
+    TransformNode,
     Workflow,
     WorkflowConfig,
     WorkflowStatus,
@@ -28,23 +28,23 @@ def reset_registry() -> None:
 class TestWorkflowCreation:
     """Tests for Workflow constructor validation."""
 
-    def test_requires_steps(self) -> None:
-        with pytest.raises(ValueError, match="at least one step"):
-            Workflow(steps=[])
+    def test_requires_nodes(self) -> None:
+        with pytest.raises(ValueError, match="at least one node"):
+            Workflow(nodes=[])
 
-    def test_requires_non_empty_step_names(self) -> None:
+    def test_requires_non_empty_node_names(self) -> None:
         with pytest.raises(ValueError):
-            LLMStep(name="", prompt="test")
+            LLMNode(name="", prompt="test")
 
-    def test_rejects_duplicate_step_names(self) -> None:
-        with pytest.raises(ValueError, match="Duplicate step name"):
-            Workflow(steps=[
-                LLMStep(name="step", prompt="p1"),
-                LLMStep(name="step", prompt="p2"),
+    def test_rejects_duplicate_node_names(self) -> None:
+        with pytest.raises(ValueError, match="Duplicate node name"):
+            Workflow(nodes=[
+                LLMNode(name="node", prompt="p1"),
+                LLMNode(name="node", prompt="p2"),
             ])
 
     def test_workflow_gets_uuid(self) -> None:
-        w = Workflow(steps=[LLMStep(name="s", prompt="p")])
+        w = Workflow(nodes=[LLMNode(name="s", prompt="p")])
         assert len(w.workflow_id) == 36  # UUID format
 
 
@@ -53,40 +53,39 @@ class TestVariableSubstitution:
 
     def test_simple_variable_substitution(self) -> None:
         result = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {name}", provider="mock")],
+            nodes=[LLMNode(name="gen", prompt="Hello {name}", provider="mock")],
             config=WorkflowConfig(provider="mock"),
         ).execute({"name": "World"})
         assert result.status == WorkflowStatus.COMPLETED
         assert "Mock response." in result.output["llm_response"]
 
-    def test_missing_variable_fails_step(self) -> None:
+    def test_missing_variable_fails_node(self) -> None:
         result = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {missing_var}", provider="mock")],
+            nodes=[LLMNode(name="gen", prompt="Hello {missing_var}", provider="mock")],
             config=WorkflowConfig(provider="mock"),
         ).execute({})
         assert result.status == WorkflowStatus.FAILED
         assert "missing_var" in result.error
 
-    def test_previous_step_output_available(self) -> None:
-        """Previous step outputs are available for next step substitution."""
+    def test_previous_node_output_available(self) -> None:
+        """Previous node outputs are available for next node substitution."""
         result = Workflow(
-            steps=[
-                TransformStep(name="prep", transform=lambda d: {"processed": d["raw"].upper()}),
-                LLMStep(name="gen", prompt="Process: {processed}", provider="mock"),
+            nodes=[
+                TransformNode(name="prep", transform=lambda d: {"processed": d["raw"].upper()}),
+                LLMNode(name="gen", prompt="Process: {processed}", provider="mock"),
             ],
             config=WorkflowConfig(provider="mock"),
         ).execute({"raw": "hello"})
         assert result.status == WorkflowStatus.COMPLETED
-        # processed should be "HELLO" from TransformStep
+        # processed should be "HELLO" from TransformNode
         assert result.output["processed"] == "HELLO"
 
 
-class TestStepSequencing:
-    """Tests for sequential step execution (FR-002)."""
+class TestNodeSequencing:
+    """Tests for sequential node execution (FR-002)."""
 
-    def test_steps_execute_in_order(self) -> None:
+    def test_nodes_execute_in_order(self) -> None:
         execution_order = []
-        results = []
 
         def make_transform(label: str):
             def transform(data: dict) -> dict:
@@ -95,21 +94,21 @@ class TestStepSequencing:
             return transform
 
         result = Workflow(
-            steps=[
-                TransformStep(name="first", transform=make_transform("first")),
-                TransformStep(name="second", transform=make_transform("second")),
-                TransformStep(name="third", transform=make_transform("third")),
+            nodes=[
+                TransformNode(name="first", transform=make_transform("first")),
+                TransformNode(name="second", transform=make_transform("second")),
+                TransformNode(name="third", transform=make_transform("third")),
             ],
         ).execute({})
         assert result.status == WorkflowStatus.COMPLETED
         assert execution_order == ["first", "second", "third"]
 
-    def test_data_passes_between_steps(self) -> None:
-        """Output of step N is available to step N+1 (FR-003)."""
+    def test_data_passes_between_nodes(self) -> None:
+        """Output of node N is available to node N+1 (FR-003)."""
         result = Workflow(
-            steps=[
-                TransformStep(name="step1", transform=lambda _: {"value": 42}),
-                TransformStep(name="step2", transform=lambda d: {"doubled": d["value"] * 2}),
+            nodes=[
+                TransformNode(name="node1", transform=lambda _: {"value": 42}),
+                TransformNode(name="node2", transform=lambda d: {"doubled": d["value"] * 2}),
             ],
         ).execute({})
         assert result.status == WorkflowStatus.COMPLETED
@@ -118,31 +117,31 @@ class TestStepSequencing:
 
 
 class TestErrorHandling:
-    """Tests for error handling and step failure attribution (FR-005)."""
+    """Tests for error handling and node failure attribution (FR-005)."""
 
-    def test_critical_step_failure_aborts_workflow(self) -> None:
+    def test_critical_node_failure_aborts_workflow(self) -> None:
         result = Workflow(
-            steps=[
-                TransformStep(
-                    name="fail_step",
+            nodes=[
+                TransformNode(
+                    name="fail_node",
                     transform=lambda _: (_ for _ in ()).throw(RuntimeError("boom")),
                     is_critical=True,
                 ),
-                TransformStep(name="should_not_run", transform=lambda _: {"x": 1}),
+                TransformNode(name="should_not_run", transform=lambda _: {"x": 1}),
             ],
         ).execute({})
         assert result.status == WorkflowStatus.FAILED
-        assert "fail_step" in result.error
+        assert "fail_node" in result.error
 
-    def test_non_critical_step_failure_continues(self) -> None:
+    def test_non_critical_node_failure_continues(self) -> None:
         result = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="optional_fail",
                     transform=lambda _: (_ for _ in ()).throw(RuntimeError("optional error")),
                     is_critical=False,
                 ),
-                TransformStep(name="should_run", transform=lambda _: {"ran": True}),
+                TransformNode(name="should_run", transform=lambda _: {"ran": True}),
             ],
         ).execute({})
         assert result.status == WorkflowStatus.COMPLETED

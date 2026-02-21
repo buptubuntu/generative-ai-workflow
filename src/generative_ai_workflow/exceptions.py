@@ -19,16 +19,16 @@ class ProviderAuthError(ProviderError):
     """LLM provider authentication failed (non-retryable)."""
 
 
-class StepError(FrameworkError):
-    """Workflow step execution failed.
+class NodeError(FrameworkError):
+    """Workflow node execution failed.
 
     Attributes:
-        step_name: Name of the step that failed.
+        node_name: Name of the node that failed.
     """
 
-    def __init__(self, message: str, step_name: str = "") -> None:
+    def __init__(self, message: str, node_name: str = "") -> None:
         super().__init__(message)
-        self.step_name = step_name
+        self.node_name = node_name
 
 
 class WorkflowError(FrameworkError):

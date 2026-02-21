@@ -8,10 +8,10 @@ import time
 import pytest
 
 from generative_ai_workflow import (
-    LLMStep,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
-    TransformStep,
+    TransformNode,
     Workflow,
     WorkflowConfig,
     WorkflowEngine,
@@ -30,7 +30,7 @@ def reset_registry() -> None:
 @pytest.fixture
 def simple_workflow() -> Workflow:
     return Workflow(
-        steps=[LLMStep(name="gen", prompt="Hello {text}", provider="mock")],
+        nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="mock")],
         config=WorkflowConfig(provider="mock"),
     )
 
@@ -87,20 +87,20 @@ class TestSyncExecution:
             await asyncio.sleep(5)  # 5 seconds
             return {"done": True}
 
-        # Use a TransformStep that sleeps
-        class SlowStep(TransformStep):
+        # Use a TransformNode that sleeps
+        class SlowNode(TransformNode):
             async def execute_async(self, context):
-                from generative_ai_workflow.workflow import StepResult, StepStatus
+                from generative_ai_workflow.workflow import NodeResult, NodeStatus
                 import uuid
                 await asyncio.sleep(5)
-                return StepResult(
+                return NodeResult(
                     step_id=str(uuid.uuid4()),
-                    status=StepStatus.COMPLETED,
+                    status=NodeStatus.COMPLETED,
                     output={"done": True},
                     duration_ms=5000.0,
                 )
 
-        workflow = Workflow(steps=[SlowStep(name="slow", transform=lambda d: d)])
+        workflow = Workflow(nodes=[SlowNode(name="slow", transform=lambda d: d)])
         engine = WorkflowEngine()
         start = time.perf_counter()
         result = engine.run(workflow, {}, timeout=0.1)

@@ -3,13 +3,13 @@ Complete Workflow Example - Demonstrates All Implemented Features
 
 This example showcases:
 1. Basic workflow creation and execution
-2. LLMStep with provider configuration
-3. TransformStep for data manipulation
-4. ConditionalStep for branching logic
+2. LLMNode with provider configuration
+3. TransformNode for data manipulation
+4. ConditionalNode for branching logic
 5. Nested conditionals
-6. Context threading across steps
+6. Context threading across nodes
 7. Token usage tracking
-8. Error handling (critical vs non-critical steps)
+8. Error handling (critical vs non-critical nodes)
 9. Async and sync execution modes
 10. MockLLMProvider for testing
 
@@ -24,16 +24,16 @@ import asyncio
 from generative_ai_workflow import (
     Workflow,
     WorkflowConfig,
-    LLMStep,
-    TransformStep,
-    ConditionalStep,
+    LLMNode,
+    TransformNode,
+    ConditionalNode,
     MockLLMProvider,
     PluginRegistry,
 )
 
 
 # ============================================================================
-# Example 1: Basic Workflow with LLM and Transform Steps
+# Example 1: Basic Workflow with LLM and Transform Nodes
 # ============================================================================
 
 def example_1_basic_workflow():
@@ -52,22 +52,22 @@ def example_1_basic_workflow():
 
     # Create workflow
     workflow = Workflow(
-        steps=[
-            # Step 1: Extract ticket text
-            TransformStep(
+        nodes=[
+            # Node 1: Extract ticket text
+            TransformNode(
                 name="extract_ticket",
                 transform=lambda d: {"text": d["ticket"]["message"]}
             ),
 
-            # Step 2: Analyze sentiment using LLM
-            LLMStep(
+            # Node 2: Analyze sentiment using LLM
+            LLMNode(
                 name="analyze_sentiment",
                 prompt="Analyze the sentiment of this customer message: {text}",
                 provider="mock",
             ),
 
-            # Step 3: Generate response
-            LLMStep(
+            # Node 3: Generate response
+            LLMNode(
                 name="generate_response",
                 prompt="Generate a response to this {analyze_sentiment_output} customer message",
                 provider="mock",
@@ -109,14 +109,14 @@ def example_2_conditional_branching():
     })
     PluginRegistry.register_provider("mock", mock)
 
-    # Create positive/negative response steps
-    positive_response = LLMStep(
+    # Create positive/negative response nodes
+    positive_response = LLMNode(
         name="positive_response",
         prompt="Generate a thank you message",
         provider="mock",
     )
 
-    negative_response = LLMStep(
+    negative_response = LLMNode(
         name="negative_response",
         prompt="Generate an empathetic apology",
         provider="mock",
@@ -124,9 +124,9 @@ def example_2_conditional_branching():
 
     # Create workflow with conditional routing
     workflow = Workflow(
-        steps=[
+        nodes=[
             # Prepare context
-            TransformStep(
+            TransformNode(
                 name="prepare",
                 transform=lambda d: {
                     "text": d["message"],
@@ -135,11 +135,11 @@ def example_2_conditional_branching():
             ),
 
             # Route based on sentiment
-            ConditionalStep(
+            ConditionalNode(
                 name="sentiment_router",
                 condition="sentiment == 'positive'",
-                true_steps=[positive_response],
-                false_steps=[negative_response],
+                true_nodes=[positive_response],
+                false_nodes=[negative_response],
             ),
         ],
         config=WorkflowConfig(provider="mock"),
@@ -168,11 +168,11 @@ def example_3_nested_conditionals():
     PluginRegistry.clear()
 
     # Inner conditional: severity-based action
-    severity_router = ConditionalStep(
+    severity_router = ConditionalNode(
         name="severity_router",
         condition="severity == 'critical'",
-        true_steps=[
-            TransformStep(
+        true_nodes=[
+            TransformNode(
                 name="escalate_to_manager",
                 transform=lambda d: {
                     **d,
@@ -182,8 +182,8 @@ def example_3_nested_conditionals():
                 }
             )
         ],
-        false_steps=[
-            TransformStep(
+        false_nodes=[
+            TransformNode(
                 name="assign_to_agent",
                 transform=lambda d: {
                     **d,
@@ -196,18 +196,18 @@ def example_3_nested_conditionals():
     )
 
     # Outer conditional: priority-based routing
-    priority_router = ConditionalStep(
+    priority_router = ConditionalNode(
         name="priority_router",
         condition="priority > 7",
-        true_steps=[
-            TransformStep(
+        true_nodes=[
+            TransformNode(
                 name="mark_urgent",
                 transform=lambda d: {**d, "severity": "critical"}
             ),
             severity_router,  # Nested conditional
         ],
-        false_steps=[
-            TransformStep(
+        false_nodes=[
+            TransformNode(
                 name="mark_normal",
                 transform=lambda d: {**d, "severity": "normal"}
             ),
@@ -217,8 +217,8 @@ def example_3_nested_conditionals():
 
     # Create workflow
     workflow = Workflow(
-        steps=[
-            TransformStep(
+        nodes=[
+            TransformNode(
                 name="analyze_priority",
                 transform=lambda d: {
                     "ticket_id": d["id"],
@@ -255,8 +255,8 @@ def example_4_complex_expressions():
     PluginRegistry.clear()
 
     workflow = Workflow(
-        steps=[
-            TransformStep(
+        nodes=[
+            TransformNode(
                 name="setup",
                 transform=lambda d: {
                     "user_type": d["user_type"],
@@ -266,17 +266,17 @@ def example_4_complex_expressions():
             ),
 
             # Complex condition: (premium AND under limit) OR admin
-            ConditionalStep(
+            ConditionalNode(
                 name="access_check",
                 condition="(user_type == 'premium' and usage < limit) or user_type == 'admin'",
-                true_steps=[
-                    TransformStep(
+                true_nodes=[
+                    TransformNode(
                         name="grant_access",
                         transform=lambda d: {**d, "access": "granted"}
                     )
                 ],
-                false_steps=[
-                    TransformStep(
+                false_nodes=[
+                    TransformNode(
                         name="deny_access",
                         transform=lambda d: {**d, "access": "denied", "reason": "limit_exceeded"}
                     )
@@ -316,22 +316,22 @@ async def example_5_token_tracking():
     })
     PluginRegistry.register_provider("mock", mock)
 
-    # Create steps with LLM calls
-    step1 = LLMStep(name="step1", prompt="prompt1", provider="mock")
-    step2 = LLMStep(name="step2", prompt="prompt2", provider="mock")
-    step3 = LLMStep(name="step3", prompt="prompt3", provider="mock")
+    # Create nodes with LLM calls
+    node1 = LLMNode(name="node1", prompt="prompt1", provider="mock")
+    node2 = LLMNode(name="node2", prompt="prompt2", provider="mock")
+    node3 = LLMNode(name="node3", prompt="prompt3", provider="mock")
 
     workflow = Workflow(
-        steps=[
-            TransformStep(
+        nodes=[
+            TransformNode(
                 name="setup",
                 transform=lambda d: {"route": d["path"]}
             ),
-            ConditionalStep(
+            ConditionalNode(
                 name="router",
                 condition="route == 'multi'",
-                true_steps=[step1, step2, step3],  # 3 LLM calls
-                false_steps=[step1],  # 1 LLM call
+                true_nodes=[node1, node2, node3],  # 3 LLM calls
+                false_nodes=[node1],  # 1 LLM call
             ),
         ],
         config=WorkflowConfig(provider="mock"),
@@ -344,39 +344,39 @@ async def example_5_token_tracking():
     print(f"Total Tokens: {result.metrics.token_usage_total.total_tokens}")
     print(f"Prompt Tokens: {result.metrics.token_usage_total.prompt_tokens}")
     print(f"Completion Tokens: {result.metrics.token_usage_total.completion_tokens}")
-    print(f"Steps Executed: 3 LLM steps in true branch")
+    print(f"Nodes Executed: 3 LLM nodes in true branch")
 
 
 # ============================================================================
-# Example 6: Error Handling - Critical vs Non-Critical Steps
+# Example 6: Error Handling - Critical vs Non-Critical Nodes
 # ============================================================================
 
 def example_6_error_handling():
-    """Demonstrate critical vs non-critical step failure handling."""
+    """Demonstrate critical vs non-critical node failure handling."""
     print("\n" + "="*70)
     print("Example 6: Error Handling (Critical vs Non-Critical)")
     print("="*70)
 
     PluginRegistry.clear()
 
-    # Create a step that will fail
+    # Create a node that will fail
     def failing_transform(d):
-        raise ValueError("Simulated step failure")
+        raise ValueError("Simulated node failure")
 
-    # Test 1: Critical step failure (workflow should fail)
+    # Test 1: Critical node failure (workflow should fail)
     workflow_critical = Workflow(
-        steps=[
-            TransformStep(
-                name="step1",
+        nodes=[
+            TransformNode(
+                name="node1",
                 transform=lambda d: {"data": "success"}
             ),
-            TransformStep(
-                name="failing_step",
+            TransformNode(
+                name="failing_node",
                 transform=failing_transform,
-                is_critical=True,  # Critical step
+                is_critical=True,  # Critical node
             ),
-            TransformStep(
-                name="step3",
+            TransformNode(
+                name="node3",
                 transform=lambda d: {"final": "done"}
             ),
         ],
@@ -387,20 +387,20 @@ def example_6_error_handling():
     print(f"  Status: {result1.status}")
     print(f"  Error: {result1.error[:50] if result1.error else None}...")
 
-    # Test 2: Non-critical step failure (workflow should continue)
+    # Test 2: Non-critical node failure (workflow should continue)
     workflow_noncritical = Workflow(
-        steps=[
-            TransformStep(
-                name="step1",
+        nodes=[
+            TransformNode(
+                name="node1",
                 transform=lambda d: {"data": "success"}
             ),
-            TransformStep(
-                name="failing_step",
+            TransformNode(
+                name="failing_node",
                 transform=failing_transform,
-                is_critical=False,  # Non-critical step
+                is_critical=False,  # Non-critical node
             ),
-            TransformStep(
-                name="step3",
+            TransformNode(
+                name="node3",
                 transform=lambda d: {**d, "final": "done"}
             ),
         ],
@@ -410,7 +410,7 @@ def example_6_error_handling():
     print(f"\nNon-Critical Failure Test:")
     print(f"  Status: {result2.status}")
     print(f"  Output: {result2.output}")
-    print(f"  Note: Workflow continued despite step2 failure")
+    print(f"  Note: Workflow continued despite node2 failure")
 
 
 # ============================================================================
@@ -436,15 +436,15 @@ if __name__ == "__main__":
     print("All examples completed successfully!")
     print("="*70)
     print("\nKey Features Demonstrated:")
-    print("✓ Basic workflow creation and execution")
-    print("✓ LLMStep with provider configuration")
-    print("✓ TransformStep for data transformation")
-    print("✓ ConditionalStep for if/else branching")
-    print("✓ Nested conditionals (multi-level)")
-    print("✓ Complex boolean expressions")
-    print("✓ Context threading across steps")
-    print("✓ Token usage tracking and aggregation")
-    print("✓ Error handling (critical vs non-critical)")
-    print("✓ Async and sync execution modes")
-    print("✓ MockLLMProvider for zero-cost testing")
+    print("* Basic workflow creation and execution")
+    print("* LLMNode with provider configuration")
+    print("* TransformNode for data transformation")
+    print("* ConditionalNode for if/else branching")
+    print("* Nested conditionals (multi-level)")
+    print("* Complex boolean expressions")
+    print("* Context threading across nodes")
+    print("* Token usage tracking and aggregation")
+    print("* Error handling (critical vs non-critical)")
+    print("* Async and sync execution modes")
+    print("* MockLLMProvider for zero-cost testing")
     print("\nNext: Try with real OpenAI provider by setting OPENAI_API_KEY!")

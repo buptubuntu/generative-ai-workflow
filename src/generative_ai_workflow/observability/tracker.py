@@ -1,6 +1,6 @@
 """Token usage tracking for workflow executions.
 
-Accumulates per-step and total token usage, providing a query API
+Accumulates per-node and total token usage, providing a query API
 for cost tracking and observability (FR-011, FR-016).
 """
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 class TokenUsageTracker:
-    """Accumulate and query token usage across workflow steps.
+    """Accumulate and query token usage across workflow nodes.
 
     Used internally by WorkflowEngine to track token consumption.
     Exposed via WorkflowResult.metrics for cost tracking applications.
@@ -28,17 +28,17 @@ class TokenUsageTracker:
     """
 
     def __init__(self) -> None:
-        self._step_usage: dict[str, "TokenUsage"] = {}
+        self._node_usage: dict[str, "TokenUsage"] = {}
         self._total: "TokenUsage | None" = None
 
-    def record(self, step_name: str, usage: "TokenUsage") -> None:
-        """Record token usage for a step.
+    def record(self, node_name: str, usage: "TokenUsage") -> None:
+        """Record token usage for a node.
 
         Args:
-            step_name: The name of the workflow step.
-            usage: Token usage from this step's LLM call.
+            node_name: The name of the workflow node.
+            usage: Token usage from this node's LLM call.
         """
-        self._step_usage[step_name] = usage
+        self._node_usage[node_name] = usage
         self._accumulate(usage)
 
     def _accumulate(self, usage: "TokenUsage") -> None:
@@ -59,26 +59,26 @@ class TokenUsageTracker:
 
     @property
     def total(self) -> "TokenUsage | None":
-        """Aggregated token usage across all recorded steps."""
+        """Aggregated token usage across all recorded nodes."""
         return self._total
 
-    def get_step_usage(self, step_name: str) -> "TokenUsage | None":
-        """Get token usage for a specific step.
+    def get_node_usage(self, node_name: str) -> "TokenUsage | None":
+        """Get token usage for a specific node.
 
         Args:
-            step_name: The step name to query.
+            node_name: The node name to query.
 
         Returns:
-            TokenUsage for the step, or None if not recorded.
+            TokenUsage for the node, or None if not recorded.
         """
-        return self._step_usage.get(step_name)
+        return self._node_usage.get(node_name)
 
     @property
-    def all_step_usage(self) -> dict[str, "TokenUsage"]:
-        """All step usages as a dict of step_name -> TokenUsage."""
-        return dict(self._step_usage)
+    def all_node_usage(self) -> dict[str, "TokenUsage"]:
+        """All node usages as a dict of node_name -> TokenUsage."""
+        return dict(self._node_usage)
 
     def reset(self) -> None:
         """Reset all accumulated usage."""
-        self._step_usage.clear()
+        self._node_usage.clear()
         self._total = None

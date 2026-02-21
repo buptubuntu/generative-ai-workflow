@@ -85,10 +85,10 @@ class Middleware:
     ) -> None:
         """Hook executed when a workflow completes (any terminal status)."""
 
-    async def on_step_error(
+    async def on_node_error(
         self,
         error: Exception,
-        step_name: str,
+        node_name: str,
         context: dict[str, Any],
     ) -> None:
-        """Hook executed when a workflow step fails."""
+        """Hook executed when a workflow node fails."""

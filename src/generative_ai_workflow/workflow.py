@@ -1,7 +1,7 @@
 """Workflow data models and the Workflow class.
 
 Contains all pydantic models for workflow state management plus the
-Workflow class that users construct to define multi-step LLM pipelines.
+Workflow class that users construct to define multi-node LLM pipelines.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
     from generative_ai_workflow.config import FrameworkConfig
-    from generative_ai_workflow.step import WorkflowStep
+    from generative_ai_workflow.node import WorkflowNode
 
 
 # ---------------------------------------------------------------------------
@@ -53,8 +53,8 @@ class WorkflowStatus(str, Enum):
         )
 
 
-class StepStatus(str, Enum):
-    """Lifecycle states of a single workflow step."""
+class NodeStatus(str, Enum):
+    """Lifecycle states of a single workflow node."""
 
     PENDING = "pending"
     RUNNING = "running"
@@ -66,9 +66,9 @@ class StepStatus(str, Enum):
     def is_terminal(self) -> bool:
         """Return True if this is a terminal (final) state."""
         return self in (
-            StepStatus.COMPLETED,
-            StepStatus.FAILED,
-            StepStatus.SKIPPED,
+            NodeStatus.COMPLETED,
+            NodeStatus.FAILED,
+            NodeStatus.SKIPPED,
         )
 
 
@@ -77,16 +77,16 @@ class StepStatus(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-class StepContext(BaseModel):
-    """Execution context passed to each workflow step.
+class NodeContext(BaseModel):
+    """Execution context passed to each workflow node.
 
     Attributes:
         workflow_id: Parent workflow UUID.
-        step_id: Current step UUID.
+        step_id: Execution-slot UUID.
         correlation_id: Distributed tracing correlation UUID.
-        input_data: Data passed to this step.
+        input_data: Data passed to this node.
         variables: Template substitution variables.
-        previous_outputs: Outputs from prior steps, keyed by step name.
+        previous_outputs: Outputs from prior nodes, keyed by node name.
         config: Merged configuration for this execution.
     """
 
@@ -99,20 +99,20 @@ class StepContext(BaseModel):
     config: Any = Field(default=None)  # FrameworkConfig — Any to avoid circular at model level
 
 
-class StepResult(BaseModel):
-    """Output from a single workflow step execution.
+class NodeResult(BaseModel):
+    """Output from a single workflow node execution.
 
     Attributes:
-        step_id: Step UUID.
+        step_id: Execution-slot UUID.
         status: Terminal execution status.
-        output: Step output data (None if step failed).
-        error: Error message if the step failed.
-        duration_ms: Step execution wall-clock time.
-        token_usage: Token consumption if this step involved an LLM call.
+        output: Node output data (None if node failed).
+        error: Error message if the node failed.
+        duration_ms: Node execution wall-clock time.
+        token_usage: Token consumption if this node involved an LLM call.
     """
 
     step_id: str
-    status: StepStatus
+    status: NodeStatus
     output: dict[str, Any] | None = None
     error: str | None = None
     duration_ms: float = Field(ge=0.0)
@@ -226,20 +226,20 @@ class WorkflowConfig(BaseModel):
 
 
 class Workflow:
-    """Define and execute a multi-step LLM workflow.
+    """Define and execute a multi-node LLM workflow.
 
-    A workflow is an ordered sequence of steps executed with data flowing
-    from one step to the next. Each step receives the accumulated outputs
-    from all prior steps.
+    A workflow is an ordered sequence of nodes executed with data flowing
+    from one node to the next. Each node receives the accumulated outputs
+    from all prior nodes.
 
     Args:
-        steps: Ordered list of workflow steps to execute.
+        nodes: Ordered list of workflow nodes to execute.
         name: Optional human-readable name for logging and metrics.
         config: Optional workflow-specific configuration overrides.
 
     Usage (async — recommended)::
 
-        workflow = Workflow(steps=[prompt_step, llm_step, parse_step])
+        workflow = Workflow(nodes=[prep_node, llm_node, parse_node])
         result = await workflow.execute_async({"user_input": "Hello"})
         print(result.output)
 
@@ -251,28 +251,28 @@ class Workflow:
 
     def __init__(
         self,
-        steps: list["WorkflowStep"],
+        nodes: list["WorkflowNode"],
         name: str = "",
         config: WorkflowConfig | None = None,
     ) -> None:
-        if not steps:
-            raise ValueError("Workflow must have at least one step.")
-        self._validate_steps(steps)
-        self.steps = steps
+        if not nodes:
+            raise ValueError("Workflow must have at least one node.")
+        self._validate_nodes(nodes)
+        self.nodes = nodes
         self.name = name
         self.config = config or WorkflowConfig()
         self.workflow_id = str(uuid.uuid4())
 
     @staticmethod
-    def _validate_steps(steps: list["WorkflowStep"]) -> None:
-        """Validate step names are non-empty and unique."""
+    def _validate_nodes(nodes: list["WorkflowNode"]) -> None:
+        """Validate node names are non-empty and unique."""
         seen: set[str] = set()
-        for step in steps:
-            if not step.name:
-                raise ValueError("All workflow steps must have a non-empty name.")
-            if step.name in seen:
-                raise ValueError(f"Duplicate step name: {step.name!r}")
-            seen.add(step.name)
+        for node in nodes:
+            if not node.name:
+                raise ValueError("All workflow nodes must have a non-empty name.")
+            if node.name in seen:
+                raise ValueError(f"Duplicate node name: {node.name!r}")
+            seen.add(node.name)
 
     async def execute_async(
         self,
