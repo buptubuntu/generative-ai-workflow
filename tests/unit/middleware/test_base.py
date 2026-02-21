@@ -6,7 +6,7 @@ import pytest
 
 from generative_ai_workflow import (
     AbortError,
-    LLMStep,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
     Workflow,
@@ -29,7 +29,7 @@ def reset_registry() -> None:
 @pytest.fixture
 def simple_workflow() -> Workflow:
     return Workflow(
-        steps=[LLMStep(name="gen", prompt="Hello {text}", provider="mock")],
+        nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="mock")],
         config=WorkflowConfig(provider="mock"),
     )
 
@@ -100,20 +100,20 @@ class TestMiddlewareErrorIsolation:
 
 
 class TestPluginIsolation:
-    """Verify plugin (step) failures are properly isolated."""
+    """Verify plugin (node) failures are properly isolated."""
 
     async def test_non_critical_plugin_failure_isolated(self) -> None:
-        """Non-critical step failure logged, execution continues."""
-        from generative_ai_workflow import TransformStep
+        """Non-critical node failure logged, execution continues."""
+        from generative_ai_workflow import TransformNode
 
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="optional",
                     transform=lambda _: (_ for _ in ()).throw(RuntimeError("plugin error")),
                     is_critical=False,
                 ),
-                TransformStep(name="continue", transform=lambda _: {"ran": True}),
+                TransformNode(name="continue", transform=lambda _: {"ran": True}),
             ],
         )
 

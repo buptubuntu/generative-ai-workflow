@@ -31,42 +31,42 @@ class TestTokenUsageTracker:
     def test_initial_total_is_none(self, tracker: TokenUsageTracker) -> None:
         assert tracker.total is None
 
-    def test_record_single_step(self, tracker: TokenUsageTracker, usage1: TokenUsage) -> None:
-        tracker.record("step1", usage1)
+    def test_record_single_node(self, tracker: TokenUsageTracker, usage1: TokenUsage) -> None:
+        tracker.record("node1", usage1)
         assert tracker.total is not None
         assert tracker.total.total_tokens == 15
 
-    def test_accumulates_multiple_steps(
+    def test_accumulates_multiple_nodes(
         self, tracker: TokenUsageTracker, usage1: TokenUsage, usage2: TokenUsage
     ) -> None:
-        tracker.record("step1", usage1)
-        tracker.record("step2", usage2)
+        tracker.record("node1", usage1)
+        tracker.record("node2", usage2)
         assert tracker.total.prompt_tokens == 30
         assert tracker.total.completion_tokens == 13
         assert tracker.total.total_tokens == 43
 
-    def test_per_step_query(
+    def test_per_node_query(
         self, tracker: TokenUsageTracker, usage1: TokenUsage
     ) -> None:
         tracker.record("summarize", usage1)
-        result = tracker.get_step_usage("summarize")
+        result = tracker.get_node_usage("summarize")
         assert result.total_tokens == 15
 
-    def test_missing_step_returns_none(self, tracker: TokenUsageTracker) -> None:
-        assert tracker.get_step_usage("nonexistent") is None
+    def test_missing_node_returns_none(self, tracker: TokenUsageTracker) -> None:
+        assert tracker.get_node_usage("nonexistent") is None
 
-    def test_all_step_usage(
+    def test_all_node_usage(
         self, tracker: TokenUsageTracker, usage1: TokenUsage, usage2: TokenUsage
     ) -> None:
-        tracker.record("step1", usage1)
-        tracker.record("step2", usage2)
-        all_usage = tracker.all_step_usage
-        assert set(all_usage.keys()) == {"step1", "step2"}
+        tracker.record("node1", usage1)
+        tracker.record("node2", usage2)
+        all_usage = tracker.all_node_usage
+        assert set(all_usage.keys()) == {"node1", "node2"}
 
     def test_reset_clears_all(
         self, tracker: TokenUsageTracker, usage1: TokenUsage
     ) -> None:
-        tracker.record("step1", usage1)
+        tracker.record("node1", usage1)
         tracker.reset()
         assert tracker.total is None
-        assert tracker.all_step_usage == {}
+        assert tracker.all_node_usage == {}

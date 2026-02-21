@@ -12,7 +12,7 @@ import time
 import pytest
 
 from generative_ai_workflow import (
-    LLMStep,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
     Workflow,
@@ -41,13 +41,13 @@ class TestConcurrentWorkflowPerformance:
 
         Methodology:
         - Use a MockLLMProvider with artificial delay simulating real LLM latency (10ms)
-        - Measure: total_wall_clock vs (n_workflows * llm_latency_per_step)
+        - Measure: total_wall_clock vs (n_workflows * llm_latency_per_node)
         - Framework overhead = (wall_clock - expected_llm_time) / expected_llm_time
         - Assert overhead ≤ 20% (framework processing is small relative to LLM calls)
 
         This reflects the real-world scenario where LLM calls dominate execution time.
         """
-        LLM_LATENCY_MS = 10.0  # simulated LLM latency per step
+        LLM_LATENCY_MS = 10.0  # simulated LLM latency per node
         n = 100
 
         # MockProvider that simulates 10ms LLM latency
@@ -62,7 +62,7 @@ class TestConcurrentWorkflowPerformance:
 
         engine = WorkflowEngine()
         workflow = Workflow(
-            steps=[LLMStep(name="gen", prompt="Test {idx}", provider="delayed_mock")],
+            nodes=[LLMNode(name="gen", prompt="Test {idx}", provider="delayed_mock")],
             config=WorkflowConfig(provider="delayed_mock"),
         )
 

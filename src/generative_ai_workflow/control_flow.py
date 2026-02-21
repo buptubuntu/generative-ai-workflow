@@ -16,8 +16,8 @@ from typing import TYPE_CHECKING, Any
 from simpleeval import EvalWithCompoundTypes, InvalidExpression, NameNotDefined
 
 if TYPE_CHECKING:
-    from generative_ai_workflow.step import WorkflowStep
-    from generative_ai_workflow.workflow import StepContext, StepResult, StepStatus
+    from generative_ai_workflow.node import WorkflowNode
+    from generative_ai_workflow.workflow import NodeContext, NodeResult, NodeStatus
 
 
 # =============================================================================
@@ -35,7 +35,7 @@ class ExpressionError(Exception):
         - Forbidden operator (e.g., function definition, import)
 
     Examples:
-        ExpressionError("Variable 'missing_var' not found in context (available: ['input', 'step1'])")
+        ExpressionError("Variable 'missing_var' not found in context (available: ['input', 'node1'])")
         ExpressionError("Invalid expression syntax: unexpected token at position 5")
         ExpressionError("Type mismatch: cannot compare 'str' with 'int'")
     """
@@ -205,29 +205,29 @@ class ExpressionEvaluator:
 
 
 # =============================================================================
-# Control Flow Steps
+# Control Flow Nodes
 # =============================================================================
 
 
-class ConditionalStep:
-    """Conditional branching workflow step (if/else).
+class ConditionalNode:
+    """Conditional branching workflow node (if/else).
 
     Evaluates a boolean expression on workflow context data and executes
     either the true branch or false branch based on the result.
 
     Attributes:
-        name: Unique step name
+        name: Unique node name
         condition: Boolean expression string (e.g., "sentiment == 'positive'")
-        true_steps: Steps to execute if condition is True
-        false_steps: Steps to execute if condition is False (optional, empty if omitted)
-        is_critical: If True, step failure aborts workflow
+        true_nodes: Nodes to execute if condition is True
+        false_nodes: Nodes to execute if condition is False (optional, empty if omitted)
+        is_critical: If True, node failure aborts workflow
 
     Examples:
-        >>> ConditionalStep(
+        >>> ConditionalNode(
         ...     name="sentiment_router",
         ...     condition="sentiment == 'positive'",
-        ...     true_steps=[LLMStep(name="positive_response", prompt="...")],
-        ...     false_steps=[LLMStep(name="negative_response", prompt="...")],
+        ...     true_nodes=[LLMNode(name="positive_response", prompt="...")],
+        ...     false_nodes=[LLMNode(name="negative_response", prompt="...")],
         ... )
     """
 
@@ -235,66 +235,66 @@ class ConditionalStep:
         self,
         name: str,
         condition: str,
-        true_steps: list["WorkflowStep"],
-        false_steps: list["WorkflowStep"] | None = None,
+        true_nodes: list["WorkflowNode"],
+        false_nodes: list["WorkflowNode"] | None = None,
         is_critical: bool = True,
     ) -> None:
-        """Initialize ConditionalStep with validation.
+        """Initialize ConditionalNode with validation.
 
         Args:
-            name: Step identifier
+            name: Node identifier
             condition: Boolean expression to evaluate
-            true_steps: Steps to execute if condition is True
-            false_steps: Steps to execute if condition is False (optional)
-            is_critical: If True, step failure aborts workflow
+            true_nodes: Nodes to execute if condition is True
+            false_nodes: Nodes to execute if condition is False (optional)
+            is_critical: If True, node failure aborts workflow
 
         Raises:
-            ValueError: If validation fails (empty condition, empty true_steps, invalid syntax)
+            ValueError: If validation fails (empty condition, empty true_nodes, invalid syntax)
         """
         if not name:
-            raise ValueError("ConditionalStep name cannot be empty")
+            raise ValueError("ConditionalNode name cannot be empty")
         self.name = name
         self.condition = condition
-        self.true_steps = true_steps
-        self.false_steps = false_steps or []
+        self.true_nodes = true_nodes
+        self.false_nodes = false_nodes or []
         self.is_critical = is_critical
         self._validate()
 
     def _validate(self) -> None:
-        """Validate condition syntax and step structure at definition time.
+        """Validate condition syntax and node structure at definition time.
 
         Raises:
-            ValueError: If condition is empty or true_steps is empty
+            ValueError: If condition is empty or true_nodes is empty
             ExpressionError: If condition syntax is invalid
         """
         if not self.condition:
-            raise ValueError("ConditionalStep condition cannot be empty")
+            raise ValueError("ConditionalNode condition cannot be empty")
         ExpressionEvaluator.validate_expression(self.condition)
-        if not self.true_steps:
-            raise ValueError("ConditionalStep must have at least one true_step")
-        # false_steps MAY be empty (no else branch)
+        if not self.true_nodes:
+            raise ValueError("ConditionalNode must have at least one true_node")
+        # false_nodes MAY be empty (no else branch)
 
-    async def execute_async(self, context: "StepContext") -> "StepResult":
+    async def execute_async(self, context: "NodeContext") -> "NodeResult":
         """Execute conditional branch based on context data.
 
         1. Evaluate condition expression on {**context.input_data, **context.previous_outputs}
-        2. Select branch (true_steps if condition == True, false_steps otherwise)
-        3. Execute selected branch steps sequentially
-        4. Accumulate outputs from branch steps
-        5. Return StepResult with accumulated output
+        2. Select branch (true_nodes if condition == True, false_nodes otherwise)
+        3. Execute selected branch nodes sequentially
+        4. Accumulate outputs from branch nodes
+        5. Return NodeResult with accumulated output
 
         Args:
             context: Execution context with input data and previous outputs
 
         Returns:
-            StepResult with accumulated output from executed branch steps
+            NodeResult with accumulated output from executed branch nodes
 
         Error Handling:
-            - If condition evaluation fails → StepResult(status=FAILED)
-            - If critical child step fails → StepResult(status=FAILED)
-            - If non-critical child step fails → log warning, continue
+            - If condition evaluation fails → NodeResult(status=FAILED)
+            - If critical child node fails → NodeResult(status=FAILED)
+            - If non-critical child node fails → log warning, continue
         """
-        from generative_ai_workflow.workflow import StepResult, StepStatus
+        from generative_ai_workflow.workflow import NodeResult, NodeStatus
         import structlog
 
         logger = structlog.get_logger()
@@ -317,10 +317,10 @@ class ConditionalStep:
 
             # Select branch
             if condition_result:
-                selected_steps = self.true_steps
+                selected_nodes = self.true_nodes
                 branch_name = "true"
             else:
-                selected_steps = self.false_steps
+                selected_nodes = self.false_nodes
                 branch_name = "false"
 
             logger.info(
@@ -330,49 +330,49 @@ class ConditionalStep:
                 correlation_id=context.correlation_id,
             )
 
-            # Execute selected branch steps
+            # Execute selected branch nodes
             accumulated_output = {}
             total_token_usage = None
 
-            for step in selected_steps:
-                step_result = await step.execute_async(context)
+            for node in selected_nodes:
+                node_result = await node.execute_async(context)
 
                 # Check for critical failure
-                if step_result.status == StepStatus.FAILED and step.is_critical:
+                if node_result.status == NodeStatus.FAILED and node.is_critical:
                     duration_ms = (time.time() - start_time) * 1000
-                    return StepResult(
+                    return NodeResult(
                         step_id=context.step_id,
-                        status=StepStatus.FAILED,
+                        status=NodeStatus.FAILED,
                         output=None,
-                        error=f"Critical child step '{step.name}' failed: {step_result.error}",
+                        error=f"Critical child node '{node.name}' failed: {node_result.error}",
                         duration_ms=duration_ms,
                         token_usage=None,
                     )
 
                 # Accumulate output
-                if step_result.output:
-                    accumulated_output.update(step_result.output)
+                if node_result.output:
+                    accumulated_output.update(node_result.output)
 
                 # Aggregate token usage
-                if step_result.token_usage:
+                if node_result.token_usage:
                     if total_token_usage is None:
-                        total_token_usage = step_result.token_usage
+                        total_token_usage = node_result.token_usage
                     else:
                         # Simple aggregation - add token counts
-                        total_token_usage.prompt_tokens += step_result.token_usage.prompt_tokens
+                        total_token_usage.prompt_tokens += node_result.token_usage.prompt_tokens
                         total_token_usage.completion_tokens += (
-                            step_result.token_usage.completion_tokens
+                            node_result.token_usage.completion_tokens
                         )
-                        total_token_usage.total_tokens += step_result.token_usage.total_tokens
+                        total_token_usage.total_tokens += node_result.token_usage.total_tokens
 
-                # Update context for next step
+                # Update context for next node
                 context.previous_outputs.update(accumulated_output)
 
             # Success
             duration_ms = (time.time() - start_time) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=context.step_id,
-                status=StepStatus.COMPLETED,
+                status=NodeStatus.COMPLETED,
                 output=accumulated_output,
                 error=None,
                 duration_ms=duration_ms,
@@ -381,9 +381,9 @@ class ConditionalStep:
 
         except ExpressionError as e:
             duration_ms = (time.time() - start_time) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=context.step_id,
-                status=StepStatus.FAILED,
+                status=NodeStatus.FAILED,
                 output=None,
                 error=f"Condition evaluation failed: {e}",
                 duration_ms=duration_ms,
@@ -391,11 +391,11 @@ class ConditionalStep:
             )
         except Exception as e:
             duration_ms = (time.time() - start_time) * 1000
-            return StepResult(
+            return NodeResult(
                 step_id=context.step_id,
-                status=StepStatus.FAILED,
+                status=NodeStatus.FAILED,
                 output=None,
-                error=f"ConditionalStep execution failed: {e}",
+                error=f"ConditionalNode execution failed: {e}",
                 duration_ms=duration_ms,
                 token_usage=None,
             )

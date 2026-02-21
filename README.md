@@ -19,10 +19,10 @@ See [specs/001-framework-foundation/quickstart.md](specs/001-framework-foundatio
 
 ```python
 import asyncio
-from generative_ai_workflow import Workflow, LLMStep
+from generative_ai_workflow import Workflow, LLMNode
 
 workflow = Workflow(
-    steps=[LLMStep(name="summarize", prompt="Summarize in one sentence: {text}")],
+    nodes=[LLMNode(name="summarize", prompt="Summarize in one sentence: {text}")],
     name="my-first-workflow",
 )
 

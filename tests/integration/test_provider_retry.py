@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from generative_ai_workflow import (
-    LLMStep,
+    LLMNode,
     PluginRegistry,
     Workflow,
     WorkflowConfig,
@@ -60,7 +60,7 @@ class TestProviderRetryBehavior:
         PluginRegistry.register_provider("openai-retry", provider)
 
         workflow = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {text}", provider="openai-retry")],
+            nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="openai-retry")],
             config=WorkflowConfig(provider="openai-retry"),
         )
         result = await workflow.execute_async({"text": "world"})
@@ -87,7 +87,7 @@ class TestProviderRetryBehavior:
         PluginRegistry.register_provider("openai-fail", provider)
 
         workflow = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {text}", provider="openai-fail")],
+            nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="openai-fail")],
             config=WorkflowConfig(provider="openai-fail"),
         )
         result = await workflow.execute_async({"text": "world"})

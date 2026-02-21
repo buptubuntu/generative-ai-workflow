@@ -9,10 +9,10 @@ from __future__ import annotations
 import pytest
 
 from generative_ai_workflow import (
-    LLMStep,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
-    TransformStep,
+    TransformNode,
     Workflow,
     WorkflowConfig,
     WorkflowEngine,
@@ -36,12 +36,12 @@ def reset_registry() -> None:
 class TestFullWorkflowExecution:
     """End-to-end workflow tests (SC-001: ≤15 lines of code)."""
 
-    async def test_two_step_workflow_completes(self, cost_tracker) -> None:
-        """2-step workflow: transform + LLM call."""
+    async def test_two_node_workflow_completes(self, cost_tracker) -> None:
+        """2-node workflow: transform + LLM call."""
         workflow = Workflow(
-            steps=[
-                TransformStep(name="prep", transform=lambda d: {"clean": d["text"].strip()}),
-                LLMStep(name="gen", prompt="Process: {clean}", provider="mock"),
+            nodes=[
+                TransformNode(name="prep", transform=lambda d: {"clean": d["text"].strip()}),
+                LLMNode(name="gen", prompt="Process: {clean}", provider="mock"),
             ],
             config=WorkflowConfig(provider="mock"),
         )
@@ -54,13 +54,13 @@ class TestFullWorkflowExecution:
         cost_tracker.record(result.metrics.token_usage_total)
         cost_tracker.assert_within_budget()
 
-    async def test_three_step_llm_workflow_under_15_lines(self, cost_tracker) -> None:
-        """Verify SC-001: 3-step workflow fits in ≤15 lines (shown here explicitly)."""
+    async def test_three_node_llm_workflow_under_15_lines(self, cost_tracker) -> None:
+        """Verify SC-001: 3-node workflow fits in ≤15 lines (shown here explicitly)."""
         workflow = Workflow(
-            steps=[
-                TransformStep(name="p", transform=lambda d: {"q": d["input"]}),
-                LLMStep(name="s", prompt="Summarize: {q}", provider="mock"),
-                LLMStep(name="a", prompt="Analyze: {s_output}", provider="mock"),
+            nodes=[
+                TransformNode(name="p", transform=lambda d: {"q": d["input"]}),
+                LLMNode(name="s", prompt="Summarize: {q}", provider="mock"),
+                LLMNode(name="a", prompt="Analyze: {s_output}", provider="mock"),
             ],
             config=WorkflowConfig(provider="mock"),
         )
@@ -71,18 +71,18 @@ class TestFullWorkflowExecution:
     def test_sync_execution_with_timeout(self, cost_tracker) -> None:
         """Sync execution with timeout returns completed within timeout."""
         workflow = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {text}", provider="mock")],
+            nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="mock")],
             config=WorkflowConfig(provider="mock"),
         )
         result = workflow.execute({"text": "world"}, timeout=30.0)
         assert result.status == WorkflowStatus.COMPLETED
 
-    async def test_token_usage_tracked_across_steps(self, cost_tracker) -> None:
+    async def test_token_usage_tracked_across_nodes(self, cost_tracker) -> None:
         """SC-003: 100% of LLM operations tracked."""
         workflow = Workflow(
-            steps=[
-                LLMStep(name="step1", prompt="First: {text}", provider="mock"),
-                LLMStep(name="step2", prompt="Second: {text}", provider="mock"),
+            nodes=[
+                LLMNode(name="step1", prompt="First: {text}", provider="mock"),
+                LLMNode(name="step2", prompt="Second: {text}", provider="mock"),
             ],
             config=WorkflowConfig(provider="mock"),
         )
@@ -112,7 +112,7 @@ class TestFullWorkflowExecution:
 
         PluginRegistry.register_provider("custom", CustomProvider())
         workflow = Workflow(
-            steps=[LLMStep(name="gen", prompt="Hello {text}", provider="custom")],
+            nodes=[LLMNode(name="gen", prompt="Hello {text}", provider="custom")],
             config=WorkflowConfig(provider="custom"),
         )
         result = await workflow.execute_async({"text": "world"})

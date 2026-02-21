@@ -2,10 +2,10 @@
 Integration tests for control flow with LLM integration.
 
 Tests verify:
-- End-to-end workflows with ConditionalStep
+- End-to-end workflows with ConditionalNode
 - LLM provider integration (MockLLMProvider for testing)
 - Token usage aggregation across branches
-- Context threading through nested steps
+- Context threading through nested nodes
 - Real-world conditional routing scenarios
 
 Note: Using MockLLMProvider for deterministic testing.
@@ -15,11 +15,11 @@ For real LLM testing, set OPENAI_API_KEY and use OpenAIProvider.
 import pytest
 
 from generative_ai_workflow import (
-    ConditionalStep,
-    LLMStep,
+    ConditionalNode,
+    LLMNode,
     MockLLMProvider,
     PluginRegistry,
-    TransformStep,
+    TransformNode,
     Workflow,
     WorkflowConfig,
     WorkflowStatus,
@@ -46,50 +46,50 @@ def setup_mock_provider():
     PluginRegistry.clear()
 
 
-class TestConditionalStepWithLLMIntegration:
-    """Integration tests for ConditionalStep with LLM calls (T033-T037)."""
+class TestConditionalNodeWithLLMIntegration:
+    """Integration tests for ConditionalNode with LLM calls (T033-T037)."""
 
     def test_sentiment_routing_workflow(self) -> None:
-        """Test ConditionalStep routing based on sentiment analysis (T033).
+        """Test ConditionalNode routing based on sentiment analysis (T033).
 
         Workflow:
         1. Analyze sentiment of input text
         2. Route to positive or negative response branch based on sentiment
         3. Generate appropriate response
         """
-        # Step 1: Sentiment analysis (produces sentiment output)
-        sentiment_step = LLMStep(
+        # Node 1: Sentiment analysis (produces sentiment output)
+        sentiment_node = LLMNode(
             name="analyze_sentiment",
             prompt="Analyze sentiment: {text}",
             provider="mock",
         )
 
-        # Step 2a: Positive branch
-        positive_step = LLMStep(
+        # Node 2a: Positive branch
+        positive_node = LLMNode(
             name="positive_response",
             prompt="Generate positive response",
             provider="mock",
         )
 
-        # Step 2b: Negative branch
-        negative_step = LLMStep(
+        # Node 2b: Negative branch
+        negative_node = LLMNode(
             name="negative_response",
             prompt="Generate empathetic response",
             provider="mock",
         )
 
-        # Step 3: Conditional routing
-        conditional = ConditionalStep(
+        # Node 3: Conditional routing
+        conditional = ConditionalNode(
             name="sentiment_router",
             condition="sentiment == 'positive'",
-            true_steps=[positive_step],
-            false_steps=[negative_step],
+            true_nodes=[positive_node],
+            false_nodes=[negative_node],
         )
 
         # Create workflow
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="prepare_context",
                     transform=lambda d: {"text": d["user_input"], "sentiment": "positive"}
                 ),
@@ -107,31 +107,31 @@ class TestConditionalStepWithLLMIntegration:
         assert "negative_response_output" not in result.output  # Negative branch skipped
 
     def test_conditional_with_no_else_branch(self) -> None:
-        """Test ConditionalStep with no false branch (T034).
+        """Test ConditionalNode with no false branch (T034).
 
-        When condition is false and no false_steps defined, workflow continues
+        When condition is false and no false_nodes defined, workflow continues
         with empty output from conditional.
         """
-        transform_step = TransformStep(
+        transform_node = TransformNode(
             name="check_threshold",
             transform=lambda d: {"priority": d.get("priority", 5)}
         )
 
-        high_priority_step = LLMStep(
+        high_priority_node = LLMNode(
             name="urgent_handler",
             prompt="Handle urgent case",
             provider="mock",
         )
 
-        conditional = ConditionalStep(
+        conditional = ConditionalNode(
             name="priority_filter",
             condition="priority > 8",
-            true_steps=[high_priority_step],
-            false_steps=[],  # No else branch
+            true_nodes=[high_priority_node],
+            false_nodes=[],  # No else branch
         )
 
         workflow = Workflow(
-            steps=[transform_step, conditional],
+            nodes=[transform_node, conditional],
             config=WorkflowConfig(provider="mock"),
         )
 
@@ -140,25 +140,25 @@ class TestConditionalStepWithLLMIntegration:
 
         assert result.status == WorkflowStatus.COMPLETED
         assert "urgent_handler" not in result.output  # Branch not executed
-        assert result.output == {"priority": 3}  # Only transform step output
+        assert result.output == {"priority": 3}  # Only transform node output
 
     def test_nested_conditionals_with_context_threading(self) -> None:
-        """Test nested ConditionalStep with context threading (T035).
+        """Test nested ConditionalNode with context threading (T035).
 
         Verifies that context data flows correctly through nested conditional branches.
         """
         # Inner conditional
-        inner_conditional = ConditionalStep(
+        inner_conditional = ConditionalNode(
             name="severity_check",
             condition="severity == 'high'",
-            true_steps=[
-                TransformStep(
+            true_nodes=[
+                TransformNode(
                     name="escalate",
                     transform=lambda d: {"action": "escalate", "severity": d["severity"]}
                 )
             ],
-            false_steps=[
-                TransformStep(
+            false_nodes=[
+                TransformNode(
                     name="standard_process",
                     transform=lambda d: {"action": "standard", "severity": d["severity"]}
                 )
@@ -166,18 +166,18 @@ class TestConditionalStepWithLLMIntegration:
         )
 
         # Outer conditional
-        outer_conditional = ConditionalStep(
+        outer_conditional = ConditionalNode(
             name="type_router",
             condition="issue_type == 'bug'",
-            true_steps=[
-                TransformStep(
+            true_nodes=[
+                TransformNode(
                     name="set_severity",
                     transform=lambda d: {"severity": "high", "issue_type": d["issue_type"]}
                 ),
                 inner_conditional,
             ],
-            false_steps=[
-                TransformStep(
+            false_nodes=[
+                TransformNode(
                     name="feature_handler",
                     transform=lambda d: {"action": "feature_review"}
                 )
@@ -185,8 +185,8 @@ class TestConditionalStepWithLLMIntegration:
         )
 
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="prepare",
                     transform=lambda d: {"issue_type": "bug"}
                 ),
@@ -203,7 +203,7 @@ class TestConditionalStepWithLLMIntegration:
     def test_token_usage_aggregation_across_branches(self) -> None:
         """Test token usage aggregation across conditional branches (T036).
 
-        Verifies that token usage from nested LLM steps is correctly aggregated.
+        Verifies that token usage from nested LLM nodes is correctly aggregated.
         """
         # Create mock provider
         PluginRegistry.clear()
@@ -212,20 +212,20 @@ class TestConditionalStepWithLLMIntegration:
         )
         PluginRegistry.register_provider("mock_tokens", mock)
 
-        step1 = LLMStep(name="step1", prompt="prompt1", provider="mock_tokens")
-        step2 = LLMStep(name="step2", prompt="prompt2", provider="mock_tokens")
-        step3 = LLMStep(name="step3", prompt="prompt3", provider="mock_tokens")
+        node1 = LLMNode(name="step1", prompt="prompt1", provider="mock_tokens")
+        node2 = LLMNode(name="step2", prompt="prompt2", provider="mock_tokens")
+        node3 = LLMNode(name="step3", prompt="prompt3", provider="mock_tokens")
 
-        conditional = ConditionalStep(
+        conditional = ConditionalNode(
             name="router",
             condition="route == 'multi'",
-            true_steps=[step1, step2, step3],  # 3 LLM calls
-            false_steps=[step1],  # 1 LLM call
+            true_nodes=[node1, node2, node3],  # 3 LLM calls
+            false_nodes=[node1],  # 1 LLM call
         )
 
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="setup",
                     transform=lambda d: {"route": "multi"}
                 ),
@@ -237,24 +237,24 @@ class TestConditionalStepWithLLMIntegration:
         result = workflow.execute({})
 
         assert result.status == WorkflowStatus.COMPLETED
-        # Should have aggregated tokens from 3 LLM steps (true branch)
+        # Should have aggregated tokens from 3 LLM nodes (true branch)
         assert result.metrics.token_usage_total is not None
-        # Token usage should be > 0 and aggregated from all 3 steps
+        # Token usage should be > 0 and aggregated from all 3 nodes
         assert result.metrics.token_usage_total.prompt_tokens > 0
         assert result.metrics.token_usage_total.completion_tokens > 0
         assert result.metrics.token_usage_total.total_tokens > 0
 
     def test_complex_routing_with_multiple_conditions(self) -> None:
-        """Test ConditionalStep with complex multi-stage routing (T037).
+        """Test ConditionalNode with complex multi-stage routing (T037).
 
         Simulates a real-world scenario with multiple decision points.
         """
         # Stage 1: Check user type
-        user_check = ConditionalStep(
+        user_check = ConditionalNode(
             name="user_type_check",
             condition="user_type == 'premium'",
-            true_steps=[
-                TransformStep(
+            true_nodes=[
+                TransformNode(
                     name="premium_features",
                     transform=lambda d: {
                         **d,
@@ -263,8 +263,8 @@ class TestConditionalStepWithLLMIntegration:
                     }
                 )
             ],
-            false_steps=[
-                TransformStep(
+            false_nodes=[
+                TransformNode(
                     name="standard_features",
                     transform=lambda d: {
                         **d,
@@ -276,17 +276,17 @@ class TestConditionalStepWithLLMIntegration:
         )
 
         # Stage 2: Check usage limits
-        usage_check = ConditionalStep(
+        usage_check = ConditionalNode(
             name="usage_check",
             condition="current_usage < limit",
-            true_steps=[
-                TransformStep(
+            true_nodes=[
+                TransformNode(
                     name="allow_request",
                     transform=lambda d: {**d, "status": "allowed"}
                 )
             ],
-            false_steps=[
-                TransformStep(
+            false_nodes=[
+                TransformNode(
                     name="deny_request",
                     transform=lambda d: {**d, "status": "denied", "reason": "limit_exceeded"}
                 )
@@ -294,8 +294,8 @@ class TestConditionalStepWithLLMIntegration:
         )
 
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="prepare",
                     transform=lambda d: {
                         "user_type": d["user_type"],
@@ -319,32 +319,32 @@ class TestConditionalStepWithLLMIntegration:
         assert result2.output["status"] == "denied"
         assert result2.output["limit"] == 100
 
-    def test_conditional_with_previous_step_outputs(self) -> None:
-        """Test ConditionalStep accessing outputs from previous steps.
+    def test_conditional_with_previous_node_outputs(self) -> None:
+        """Test ConditionalNode accessing outputs from previous nodes.
 
-        Verifies that conditional expressions can reference any previous step output.
+        Verifies that conditional expressions can reference any previous node output.
         """
         workflow = Workflow(
-            steps=[
-                TransformStep(
+            nodes=[
+                TransformNode(
                     name="step1",
                     transform=lambda d: {"score": 85}
                 ),
-                TransformStep(
+                TransformNode(
                     name="step2",
                     transform=lambda d: {"threshold": 80}
                 ),
-                ConditionalStep(
+                ConditionalNode(
                     name="evaluator",
-                    condition="score > threshold",  # References both previous steps
-                    true_steps=[
-                        TransformStep(
+                    condition="score > threshold",  # References both previous nodes
+                    true_nodes=[
+                        TransformNode(
                             name="pass",
                             transform=lambda d: {"result": "PASS"}
                         )
                     ],
-                    false_steps=[
-                        TransformStep(
+                    false_nodes=[
+                        TransformNode(
                             name="fail",
                             transform=lambda d: {"result": "FAIL"}
                         )

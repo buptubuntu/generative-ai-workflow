@@ -1,15 +1,15 @@
 """generative_ai_workflow — A generic AI workflow framework.
 
-Build and execute multi-step LLM workflows with built-in OpenAI support,
+Build and execute multi-node LLM workflows with built-in OpenAI support,
 async/sync execution modes, plugin extensibility, and structured observability.
 
 Quick start::
 
     import asyncio
-    from generative_ai_workflow import Workflow, LLMStep
+    from generative_ai_workflow import Workflow, LLMNode
 
     workflow = Workflow(
-        steps=[LLMStep(name="summarize", prompt="Summarize: {text}")],
+        nodes=[LLMNode(name="summarize", prompt="Summarize: {text}")],
     )
 
     async def main():
@@ -21,7 +21,7 @@ Quick start::
 
 from generative_ai_workflow.config import FrameworkConfig
 from generative_ai_workflow.control_flow import (
-    ConditionalStep,
+    ConditionalNode,
     ExpressionError,
     ExpressionTimeoutError,
 )
@@ -30,14 +30,15 @@ from generative_ai_workflow.exceptions import (
     AbortError,
     ConfigurationError,
     FrameworkError,
+    NodeError,
     PluginError,
     PluginNotFoundError,
     PluginRegistrationError,
     ProviderAuthError,
     ProviderError,
-    StepError,
     WorkflowError,
 )
+from generative_ai_workflow.node import LLMNode, TransformNode, WorkflowNode
 from generative_ai_workflow.plugins.registry import PluginRegistry
 from generative_ai_workflow.providers.base import (
     LLMProvider,
@@ -47,12 +48,11 @@ from generative_ai_workflow.providers.base import (
     detect_pii,
 )
 from generative_ai_workflow.providers.mock import MockLLMProvider
-from generative_ai_workflow.step import LLMStep, TransformStep, WorkflowStep
 from generative_ai_workflow.workflow import (
     ExecutionMetrics,
-    StepContext,
-    StepResult,
-    StepStatus,
+    NodeContext,
+    NodeResult,
+    NodeStatus,
     Workflow,
     WorkflowConfig,
     WorkflowResult,
@@ -63,7 +63,7 @@ __all__ = [
     # Config
     "FrameworkConfig",
     # Control Flow
-    "ConditionalStep",
+    "ConditionalNode",
     "ExpressionError",
     "ExpressionTimeoutError",
     # Engine
@@ -72,12 +72,12 @@ __all__ = [
     "AbortError",
     "ConfigurationError",
     "FrameworkError",
+    "NodeError",
     "PluginError",
     "PluginNotFoundError",
     "PluginRegistrationError",
     "ProviderAuthError",
     "ProviderError",
-    "StepError",
     "WorkflowError",
     # Plugin system
     "PluginRegistry",
@@ -88,19 +88,19 @@ __all__ = [
     "MockLLMProvider",
     "TokenUsage",
     "detect_pii",
-    # Steps
-    "LLMStep",
-    "TransformStep",
-    "WorkflowStep",
+    # Nodes
+    "LLMNode",
+    "TransformNode",
+    "WorkflowNode",
     # Workflow models
     "ExecutionMetrics",
-    "StepContext",
-    "StepResult",
-    "StepStatus",
+    "NodeContext",
+    "NodeResult",
+    "NodeStatus",
     "Workflow",
     "WorkflowConfig",
     "WorkflowResult",
     "WorkflowStatus",
 ]
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
