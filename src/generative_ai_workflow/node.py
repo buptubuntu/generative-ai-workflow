@@ -62,7 +62,7 @@ class WorkflowNode(ABC):
         """Execute this node asynchronously.
 
         Args:
-            context: Execution context including input data, variables,
+            context: Execution context including input data
                      and outputs from previous nodes.
 
         Returns:
@@ -162,11 +162,7 @@ class LLMNode(WorkflowNode):
 
             # Build request from context config
             cfg = context.config
-            model = (cfg.model if cfg and cfg.model else None) or (
-                context.variables.get("_framework_config", {}).get("default_model", "gpt-4o-mini")
-                if isinstance(context.variables.get("_framework_config"), dict)
-                else "gpt-4o-mini"
-            )
+            model = (cfg.model if cfg and cfg.model else None) or "gpt-4o-mini"
             temperature = (cfg.temperature if cfg and cfg.temperature is not None else None) or 0.7
             max_tokens = (cfg.max_tokens if cfg and cfg.max_tokens is not None else None) or 1024
 

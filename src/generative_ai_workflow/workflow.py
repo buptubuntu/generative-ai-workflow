@@ -85,7 +85,6 @@ class NodeContext(BaseModel):
         step_id: Execution-slot UUID.
         correlation_id: Distributed tracing correlation UUID.
         input_data: Data passed to this node.
-        variables: Template substitution variables.
         previous_outputs: Outputs from prior nodes, keyed by node name.
         config: Merged configuration for this execution.
     """
@@ -94,7 +93,6 @@ class NodeContext(BaseModel):
     step_id: str
     correlation_id: str
     input_data: dict[str, Any] = Field(default_factory=dict)
-    variables: dict[str, Any] = Field(default_factory=dict)
     previous_outputs: dict[str, Any] = Field(default_factory=dict)
     config: Any = Field(default=None)  # FrameworkConfig — Any to avoid circular at model level
 

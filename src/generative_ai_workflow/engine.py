@@ -173,7 +173,6 @@ class WorkflowEngine:
                 step_id=step_id,
                 correlation_id=correlation_id,
                 input_data=input_data,
-                variables={},
                 previous_outputs=previous_outputs.copy(),
                 config=workflow_config,
             )
