@@ -38,7 +38,13 @@ from generative_ai_workflow.exceptions import (
     ProviderError,
     WorkflowError,
 )
-from generative_ai_workflow.node import LLMNode, TransformNode, WorkflowNode
+from generative_ai_workflow.node import (
+    GeneratedImage,
+    LLMNode,
+    StableDiffusionNode,
+    TransformNode,
+    WorkflowNode,
+)
 from generative_ai_workflow.plugins.registry import PluginRegistry
 from generative_ai_workflow.providers.base import (
     LLMProvider,
@@ -89,7 +95,9 @@ __all__ = [
     "TokenUsage",
     "detect_pii",
     # Nodes
+    "GeneratedImage",
     "LLMNode",
+    "StableDiffusionNode",
     "TransformNode",
     "WorkflowNode",
     # Workflow models

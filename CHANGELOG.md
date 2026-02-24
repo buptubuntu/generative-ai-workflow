@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased] — 0.4.0
+
+### Added
+
+- `StableDiffusionNode` — a new `WorkflowNode` subclass for local text-to-image
+  generation via Stable Diffusion. Supports `{variable}` prompt templates
+  (identical to `LLMNode`), configurable image dimensions, inference steps,
+  guidance scale, and a custom output directory. Emits structured logs and
+  metrics at full parity with `LLMNode` (FR-014, SC-007).
+- `GeneratedImage` — Pydantic output model returned in `NodeResult.output`
+  under the key `"generated_image"`. Carries `file_path`, `image_bytes`,
+  `width`, `height`, `generation_duration_ms`, `model_id`, `inference_steps`,
+  `guidance_scale`, and `device_type`.
+- `sd_model_registry.ModelRegistry` — process-level singleton registry for
+  `StableDiffusionPipeline` instances. Thread-safe via double-checked locking;
+  inference serialized per model via `threading.Lock`; scheduler cloned per
+  call via `from_pipe()`.
+- `sd_model_registry.GenerationConfig` — Pydantic model for validated
+  image-generation parameters (width/height multiples of 8, steps ≥ 1,
+  guidance ≥ 0.0).
+- Optional dependency group `[stable-diffusion]` in `pyproject.toml` —
+  `diffusers>=0.31.0,<1.0`, `transformers>=4.41.2,<5.0`, `accelerate>=0.31.0`,
+  `safetensors>=0.3.1`, `Pillow>=9.0`, `torch>=2.0.0`. Install with:
+  `pip install "generative-ai-workflow[stable-diffusion]"`.
+
+### No Breaking Changes
+
+All existing `WorkflowNode`, `LLMNode`, `TransformNode`, `Workflow`, and engine
+APIs are unchanged. The new optional extras group does not affect users who do
+not install it.
+
+---
+
+
 ## [0.3.0] - 2026-02-22
 
 ### Removed
