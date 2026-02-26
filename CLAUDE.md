@@ -9,6 +9,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-08
 - Python 3.11+ + Pydantic v2 (`BaseModel`, `Field`), pytest, pytest-asyncio (004-remove-dead-fields)
 - N/A (in-memory workflow execution) (004-remove-dead-fields)
 - Local filesystem — UUID-named PNG files written to a configurable output directory (default: `./generated_images/`); model weights pre-downloaded by user (001-stable-diffusion-node)
+- Python 3.11+ + `prometheus-client>=0.16.0` (new, optional); `structlog>=24.0` (existing); `pydantic>=2.0` (existing) (001-prometheus-middleware)
+- N/A — all metric state is in-memory inside prometheus-client's registry (001-prometheus-middleware)
 
 - Python 3.11+ (001-framework-foundation)
 
@@ -28,9 +30,9 @@ cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLO
 Python 3.11+: Follow standard conventions
 
 ## Recent Changes
+- 001-prometheus-middleware: Added Python 3.11+ + `prometheus-client>=0.16.0` (new, optional); `structlog>=24.0` (existing); `pydantic>=2.0` (existing)
 - 001-stable-diffusion-node: Added Python 3.11+
 - 004-remove-dead-fields: Added Python 3.11+ + Pydantic v2 (`BaseModel`, `Field`), pytest, pytest-asyncio
-- 003-rename-step-node: Added Python 3.11+ + pydantic>=2.0, openai>=1.0, structlog>=24.0, tenacity>=8.0, simpleeval>=1.0.0
 
 
 <!-- MANUAL ADDITIONS START -->

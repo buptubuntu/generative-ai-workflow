@@ -5,7 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] — 0.4.0
+## [Unreleased] — 0.5.0
+
+### Added
+
+- `PrometheusMiddleware` — new optional middleware in `generative_ai_workflow.middleware.prometheus`
+  that exports workflow execution metrics to Prometheus via the existing `Middleware` hook system.
+  Exposes 6 metric families: `{prefix}_duration_seconds` (Histogram), `{prefix}_total` (Counter),
+  `{prefix}_node_duration_seconds` (Histogram), `{prefix}_node_errors_total` (Counter),
+  `{prefix}_tokens_prompt_total` (Counter), `{prefix}_tokens_completion_total` (Counter).
+  Supports custom metric prefix, isolated `CollectorRegistry`, configurable histogram buckets,
+  and an optional `label_sanitiser` callable for privacy-sensitive deployments.
+  Install via `pip install 'generative-ai-workflow[observability]'`.
+- `[observability]` extras group in `pyproject.toml` — adds `prometheus-client>=0.16.0` as an
+  optional dependency without affecting users who do not need metrics export.
+
+---
+
+## [0.4.0] — 0.4.0
 
 ### Added
 
